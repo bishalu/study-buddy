@@ -63,7 +63,6 @@ def main():
         st.session_state.chat_history = None
 
 
-
     with st.sidebar:
         st.subheader("Your documents")
         pdf_docs = st.file_uploader(

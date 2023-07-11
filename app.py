@@ -1,58 +1,45 @@
 import streamlit as st
 from dotenv import load_dotenv
-from PyPDF2 import PdfReader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
-from langchain.vectorstores import FAISS
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
+from langchain.prompts import   ChatPromptTemplate, HumanMessagePromptTemplate, PromptTemplate, SystemMessagePromptTemplate
 from htmlTemplates import css, bot_template, user_template
 from langchain.llms import HuggingFaceHub
 
-def get_pdf_text(pdf_docs):
-    text = ""
-    for pdf in pdf_docs:
-        pdf_reader = PdfReader(pdf)
-        for page in pdf_reader.pages:
-            text += page.extract_text()
-    return text
-
-
-def get_text_chunks(text):
-    text_splitter = CharacterTextSplitter(
-        separator="\n",
-        chunk_size=1000,
-        chunk_overlap=200,
-        length_function=len
-    )
-    chunks = text_splitter.split_text(text)
-    return chunks
-
-
-def get_vectorstore(text_chunks):
-    embeddings = OpenAIEmbeddings()
-    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
-    vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
-    return vectorstore
-
+from utils import get_pdf_text, get_text_chunks, get_vectorstore
 
 def get_conversation_chain(vectorstore):
     llm = ChatOpenAI()
     # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
+
+    general_system_template = r""" 
+    Given a specific context, please guide the student through their inquiries. 
+    If the topic information is not provided in the prompt, say, 'You're off topic. FOCUS.' 
+    ----
+    {context}
+    ----
+    """
+    general_user_template = "```{question}```"
+    messages = [
+                SystemMessagePromptTemplate.from_template(general_system_template),
+                HumanMessagePromptTemplate.from_template(general_user_template)
+    ]
+    qa_prompt = ChatPromptTemplate.from_messages( messages )
 
     memory = ConversationBufferMemory(
         memory_key='chat_history', return_messages=True)
     conversation_chain = ConversationalRetrievalChain.from_llm(
         llm=llm,
         retriever=vectorstore.as_retriever(),
-        memory=memory
+        memory=memory,
+        combine_docs_chain_kwargs={'prompt': qa_prompt}
     )
     return conversation_chain
 
 
-def handle_userinput(user_question):
-    response = st.session_state.conversation({'question': user_question})
+def handle_userinput(user_question, question_augmentation):
+    response = st.session_state.conversation({'question': question_augmentation + user_question})
     st.session_state.chat_history = response['chat_history']
 
     for i, message in enumerate(st.session_state.chat_history):
@@ -66,7 +53,7 @@ def handle_userinput(user_question):
 
 def main():
     load_dotenv()
-    st.set_page_config(page_title="Chat with multiple PDFs",
+    st.set_page_config(page_title="Study Buddy",
                        page_icon=":books:")
     st.write(css, unsafe_allow_html=True)
 
@@ -75,15 +62,11 @@ def main():
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = None
 
-    st.header("Chat with multiple PDFs :books:")
-    user_question = st.text_input("Ask a question about your documents:")
-    if user_question:
-        handle_userinput(user_question)
 
     with st.sidebar:
         st.subheader("Your documents")
         pdf_docs = st.file_uploader(
-            "Upload your PDFs here and click on 'Process'", accept_multiple_files=True)
+            "Upload class documents here and click on 'Process'", accept_multiple_files=True)
         if st.button("Process"):
             with st.spinner("Processing"):
                 # get pdf text
@@ -98,6 +81,27 @@ def main():
                 # create conversation chain
                 st.session_state.conversation = get_conversation_chain(
                     vectorstore)
+
+    
+
+    st.header("Study Buddy")
+
+    difficulty = st.slider("Difficulty", min_value=1, max_value=5, value=5)
+    question_augmentation=''
+    if difficulty == 4:
+        question_augmentation = f'Simplify your response so a high schooler would understand it: '
+    elif difficulty == 3:
+        question_augmentation = f'Simplify your response so a middle schooler would understand it: '
+    elif difficulty == 2:
+        question_augmentation = f'Simplify your response so an elementary schooler would understand it: '
+
+    elif difficulty == 1:
+        question_augmentation = f'Simplify your response so a 5 year old would understand it: '
+
+    user_question = st.text_input("Ask a question about your class:")
+    if user_question:
+        handle_userinput(user_question, question_augmentation)
+
 
 
 if __name__ == '__main__':

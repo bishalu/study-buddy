@@ -98,8 +98,11 @@ def main():
     elif difficulty == 1:
         question_augmentation = f'Simplify your response so a 5 year old would understand it: '
 
+    pwd_protected = st.text_input("Type in the password to use the app:")
+
+
     user_question = st.text_input("Ask a question about your class:")
-    if user_question:
+    if user_question and pwd_protected == st.secrets["SECRET_PASSWORD"]:
         handle_userinput(user_question, question_augmentation)
 
 

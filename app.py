@@ -62,7 +62,6 @@ def main():
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = None
 
-
     with st.sidebar:
         st.subheader("Your documents")
         pdf_docs = st.file_uploader(
@@ -81,10 +80,31 @@ def main():
                 # create conversation chain
                 st.session_state.conversation = get_conversation_chain(
                     vectorstore)
-
+                
     
-
     st.header("Study Buddy")
+    st.caption("StudyBuddy transforms your existing course content into your preferred learning styles!")
+
+    # if not processed first, this will break. 
+    def change_student():
+        option = st.session_state['student']
+        choose_student_prompt = "For future chat, format responses for this college student:"
+        student_data = ''
+        if(option == 'Choose Student'):
+            return
+        elif(option == 'Billy'):
+            student_data = "My name is Billy and I'm a Biology major"
+        elif(option == 'Christina'):
+            student_data = "My name is Christina and I'm a Chemistry major"
+        handle_userinput(student_data, choose_student_prompt)
+
+    # Choose Student Profile 
+    option = st.selectbox(
+    '',
+    ('Choose Student', 'Billy', 'Christina'),
+    on_change=change_student,
+    key='student')
+    
 
     difficulty = st.slider("Difficulty", min_value=1, max_value=5, value=5)
     question_augmentation=''

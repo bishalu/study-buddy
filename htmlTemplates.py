@@ -23,7 +23,7 @@ css = '''
   padding: 0 1.5rem;
   color: #fff;
 }
-.st-bo{display: none;}
+
 input[type=radio]:checked+div {
     font-weight: bold;
     color:white;

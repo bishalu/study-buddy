@@ -7,7 +7,7 @@ from langchain.prompts import   ChatPromptTemplate, HumanMessagePromptTemplate, 
 from htmlTemplates import css, bot_template, user_template
 from langchain.llms import HuggingFaceHub
 import openai
-openai.api_key = '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'
+openai.api_key = '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'
 
 from utils import get_pdf_text, get_text_chunks, get_vectorstore
 
@@ -39,30 +39,38 @@ def get_conversation_chain(vectorstore):
     )
     return conversation_chain
 
+
 def simplify_text(text):
     response = openai.Completion.create(
       engine="text-davinci-002",
       prompt='simplify this text (ELI5): '+ f" '''{text}'''",
-      max_tokens=100,
-      temperature=0.2
+      max_tokens=1000,
+      temperature=0.1,
+      stop='.....'
+
     )
     return response.choices[0].text.strip()
 
-def handle_userinput(user_question):
 
-    response = st.session_state.conversation({'question': user_question})
-    st.session_state.chat_history = response['chat_history']
+def handle_userinput(prompt):
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        # Display assistant response in chat message container
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = "loading..."
+            message_placeholder.markdown(full_response)
+        
+        
+        response = st.session_state.conversation({'question': prompt})
+        st.session_state.chat_history = response['chat_history']
 
-    for i, message in enumerate(st.session_state.chat_history):
-        if i % 2 == 0:
-            st.write(user_template.replace(
-                "{{MSG}}", message.content), unsafe_allow_html=True)
-        else:
-            st.write(bot_template.replace(
-                "{{MSG}}", message.content), unsafe_allow_html=True)
-
-
-    
+        full_response = st.session_state.chat_history[-1].content
+        message_placeholder.markdown(full_response)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 
 
@@ -104,11 +112,6 @@ def main():
     #    handle_userinput(user_question)
 
 
-    def simplify_last_message():
-        last_message = st.session_state.chat_history[-1].content
-        simplified_text = simplify_text(last_message)        
-        st.session_state.chat_history[-1].content = simplified_text
-    st.button('Simplify', on_click=simplify_last_message)
 
     # Initialize chat history
     if "messages" not in st.session_state:
@@ -121,23 +124,18 @@ def main():
 
     # Accept user input
     if prompt := st.chat_input("Talk to Study Buddy"):
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        # Display user message in chat message container
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        # Display assistant response in chat message container
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            full_response = "loading..."
-            message_placeholder.markdown(full_response)
+        handle_userinput(prompt)
+        
 
-        response = st.session_state.conversation({'question': prompt})
-        st.session_state.chat_history = response['chat_history']
-    
-        full_response = st.session_state.chat_history[-1].content
-        message_placeholder.markdown(full_response)
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+
+
+    def simplify_last_message():
+        last_message = st.session_state.chat_history[-1].content
+        simplified_text = simplify_text(last_message)        
+        st.session_state.chat_history[-1].content = simplified_text
+        st.session_state.messages.append({"role": "assistant", "content": simplified_text})
+
+    st.button('Simplify', on_click=simplify_last_message)
 
 
 if __name__ == '__main__':

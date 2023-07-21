@@ -23,6 +23,25 @@ css = '''
   padding: 0 1.5rem;
   color: #fff;
 }
+.st-bo{display: none;}
+input[type=radio]:checked+div {
+    font-weight: bold;
+    color:white;
+}
+.st-bn{
+    margin: 0 auto;
+    width: 80%;
+    background-color: #303b4a;
+    margin-top: 10px;
+    padding: 10px;
+
+}
+.st-ce{
+    width:100%;
+    padding:10px 0px 10px 20px;
+    border-radius:2px;
+    color:#8592A5;
+}
 '''
 
 bot_template = '''

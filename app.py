@@ -6,8 +6,9 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import   ChatPromptTemplate, HumanMessagePromptTemplate, PromptTemplate, SystemMessagePromptTemplate
 from htmlTemplates import css, bot_template, user_template
 from langchain.llms import HuggingFaceHub
+import os
 
-from utils import get_pdf_text, get_text_chunks, get_vectorstore
+from utils import get_pdf_text, get_text_chunks, get_vectorstore,load_vectorstore
 
 def get_conversation_chain(vectorstore):
     llm = ChatOpenAI()
@@ -64,28 +65,67 @@ def main():
 
 
     with st.sidebar:
-        st.subheader("Your documents")
-        pdf_docs = st.file_uploader(
-            "Upload class documents here and click on 'Process'", accept_multiple_files=True)
-        if st.button("Process"):
-            with st.spinner("Processing"):
-                # get pdf text
-                raw_text = get_pdf_text(pdf_docs)
+        st.header("Your classes:")
 
-                # get the text chunks
-                text_chunks = get_text_chunks(raw_text)
+        #classes are currently determined by what is in the "vectors" folder
+        classes = [name for name in os.listdir("vectors")]
+        if '.DS_Store' in classes: #mac bug, probably can be removed for huggingface
+            classes.remove('.DS_Store')
+        classes.sort()
+        st.session_state.classes=classes
+        if 'radioIndex' not in st.session_state:
+            st.session_state.radioIndex = 0
 
-                # create vector store
-                vectorstore = get_vectorstore(text_chunks)
+        className = st.radio(
+            "Choose your class",
+            st.session_state.classes,
+            index=st.session_state.radioIndex
+            )
 
-                # create conversation chain
-                st.session_state.conversation = get_conversation_chain(
-                    vectorstore)
+        
+        #load vectors for the class selected
+        vectorstore = load_vectorstore(className)
+        st.session_state.conversation = get_conversation_chain(vectorstore)
+
+        if 'addNewClass' not in st.session_state:
+            st.session_state.addNewClass = False
+
+        def addNewClass(i):
+            st.session_state.addNewClass = i
+
+        st.button('Add new class', on_click=addNewClass, args=[True])
+
+        if st.session_state.addNewClass:
+            newClassName = st.text_input("Enter the name of your class:")
+            pdf_docs = st.file_uploader(
+                "Upload class documents here and click on 'Process'", accept_multiple_files=True)
+            if st.button("Process"):
+                with st.spinner("Processing"):
+                    # get pdf text
+                    raw_text = get_pdf_text(pdf_docs)
+
+                    # get the text chunks
+                    text_chunks = get_text_chunks(raw_text)
+
+                    # create vector store
+                    vectorstore = get_vectorstore(text_chunks, str(len(st.session_state.classes)+1) + "_" + newClassName)
+
+                    # create conversation chain
+                    st.session_state.conversation = get_conversation_chain(
+                        vectorstore)
+
+                #update UI    
+                st.session_state.classes.append(newClassName)
+                st.session_state.radioIndex = len(st.session_state.classes)-1
+                addNewClass(False)
+                st.experimental_rerun()
+
+                    
 
     
 
     st.header("Study Buddy")
-
+    st.write('You selected ' + className)
     difficulty = st.slider("Difficulty", min_value=1, max_value=5, value=5)
     question_augmentation=''
     if difficulty == 4:
@@ -102,7 +142,7 @@ def main():
 
 
     user_question = st.text_input("Ask a question about your class:")
-    if user_question and pwd_protected == st.secrets["SECRET_PASSWORD"]:
+    if user_question and pwd_protected == "Dream123":#st.secrets["SECRET_PASSWORD"]:
         handle_userinput(user_question, question_augmentation)
 
 

@@ -17,3 +17,10 @@ I'm here!!!
 ------------
 [Insert Study Buddy Info here]
 
+
+### Installation
+python -m venv ~/venv/studyenv
+alias pyld='source ~/venv/studyenv/bin/activate'
+pyld
+pip install -r requirements.txt
+streamlit run app.py

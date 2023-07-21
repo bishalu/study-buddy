@@ -7,9 +7,10 @@ from langchain.prompts import   ChatPromptTemplate, HumanMessagePromptTemplate, 
 from htmlTemplates import css, bot_template, user_template
 from langchain.llms import HuggingFaceHub
 import openai
-openai.api_key = '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'
+openai.api_key = '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'
+import os
 
-from utils import get_pdf_text, get_text_chunks, get_vectorstore
+from utils import get_pdf_text, get_text_chunks, get_vectorstore,load_vectorstore
 
 def get_conversation_chain(vectorstore):
     llm = ChatOpenAI()
@@ -53,24 +54,24 @@ def simplify_text(text):
 
 
 def handle_userinput(prompt):
-        # Add user message to chat history
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        # Display user message in chat message container
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        # Display assistant response in chat message container
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            full_response = "loading..."
-            message_placeholder.markdown(full_response)
-        
-        
-        response = st.session_state.conversation({'question': prompt})
-        st.session_state.chat_history = response['chat_history']
-
-        full_response = st.session_state.chat_history[-1].content
+    # Add user message to chat history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    # Display user message in chat message container
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    # Display assistant response in chat message container
+    with st.chat_message("assistant"):
+        message_placeholder = st.empty()
+        full_response = "loading..."
         message_placeholder.markdown(full_response)
-        st.session_state.messages.append({"role": "assistant", "content": full_response})
+    
+    
+    response = st.session_state.conversation({'question': prompt})
+    st.session_state.chat_history = response['chat_history']
+
+    full_response = st.session_state.chat_history[-1].content
+    message_placeholder.markdown(full_response)
+    st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 
 
@@ -85,37 +86,91 @@ def main():
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = None
 
-
     with st.sidebar:
-        st.subheader("Your documents")
-        pdf_docs = st.file_uploader(
-            "Upload class documents here and click on 'Process'", accept_multiple_files=True)
-        if st.button("Process"):
-            with st.spinner("Processing"):
-                # get pdf text
-                raw_text = get_pdf_text(pdf_docs)
 
-                # get the text chunks
-                text_chunks = get_text_chunks(raw_text)
+        st.header("Your classes:")
 
-                # create vector store
-                vectorstore = get_vectorstore(text_chunks)
+        #classes are currently determined by what is in the "vectors" folder
+        classes = [name for name in os.listdir("vectors")]
+        if '.DS_Store' in classes: #mac bug, probably can be removed for huggingface
+            classes.remove('.DS_Store')
+        classes.sort()
+        st.session_state.classes=classes
+        if 'radioIndex' not in st.session_state:
+            st.session_state.radioIndex = 0
 
-                # create conversation chain
-                st.session_state.conversation = get_conversation_chain(
-                    vectorstore)
+        className = st.radio(
+            "Choose your class",
+            st.session_state.classes,
+            index=st.session_state.radioIndex
+            )
 
+        
+        #load vectors for the class selected
+        vectorstore = load_vectorstore(className)
+        st.session_state.conversation = get_conversation_chain(vectorstore)
 
+        if 'addNewClass' not in st.session_state:
+            st.session_state.addNewClass = False
 
-    #user_question = st.text_input("Ask a question about your class:")
-    #if user_question:
-    #    handle_userinput(user_question)
+        def addNewClass(i):
+            st.session_state.addNewClass = i
 
+        st.button('Add new class', on_click=addNewClass, args=[True])
 
+        if st.session_state.addNewClass:
+            newClassName = st.text_input("Enter the name of your class:")
+            pdf_docs = st.file_uploader(
+                "Upload class documents here and click on 'Process'", accept_multiple_files=True)
+            if st.button("Process"):
+                with st.spinner("Processing"):
+                    # get pdf text
+                    raw_text = get_pdf_text(pdf_docs)
+
+                    # get the text chunks
+                    text_chunks = get_text_chunks(raw_text)
+
+                    # create vector store
+                    vectorstore = get_vectorstore(text_chunks, str(len(st.session_state.classes)+1) + "_" + newClassName)
+
+                    # create conversation chain
+                    st.session_state.conversation = get_conversation_chain(
+                        vectorstore)
+
+                #update UI    
+                st.session_state.classes.append(newClassName)
+                st.session_state.radioIndex = len(st.session_state.classes)-1
+                addNewClass(False)
+                st.experimental_rerun()
+
+                  
 
     # Initialize chat history
     if "messages" not in st.session_state:
         st.session_state.messages = []
+
+    st.caption("StudyBuddy transforms your existing course content into your preferred learning styles!")
+
+    # if not processed first, this will break. 
+    def change_student():
+        option = st.session_state['student']
+        choose_student_prompt = "For future chat, format responses for this college student:"
+        student_data = ''
+        if(option == 'Choose Student'):
+            return
+        elif(option == 'Billy'):
+            student_data = "My name is Billy and I'm a Biology major"
+        elif(option == 'Christina'):
+            student_data = "My name is Christina and I'm a Chemistry major"
+        handle_userinput(student_data, choose_student_prompt)
+
+    # Choose Student Profile 
+    option = st.selectbox(
+    '',
+    ('Choose Student', 'Billy', 'Christina'),
+    on_change=change_student,
+    key='student')
+    
 
     # Display chat messages from history on app rerun
     for message in st.session_state.messages:

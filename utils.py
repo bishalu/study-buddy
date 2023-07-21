@@ -2,6 +2,7 @@ from PyPDF2 import PdfReader
 from langchain.vectorstores import FAISS
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
+import time
 
 def get_pdf_text(pdf_docs):
     text = ""
@@ -23,8 +24,17 @@ def get_text_chunks(text):
     return chunks
 
 
-def get_vectorstore(text_chunks):
+def get_vectorstore(text_chunks, nameOfVectors):
     embeddings = OpenAIEmbeddings()
     # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
     vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
+    FAISS.save_local(vectorstore,"vectors/"+nameOfVectors)
+    return vectorstore
+
+
+#def save_vectorstore(vectorstore, nameOfVectors):
+    
+
+def load_vectorstore(nameOfVectors):
+    vectorstore = FAISS.load_local("vectors/"+nameOfVectors,OpenAIEmbeddings())
     return vectorstore

@@ -6,6 +6,8 @@ from langchain.chains import ConversationalRetrievalChain
 from langchain.prompts import   ChatPromptTemplate, HumanMessagePromptTemplate, PromptTemplate, SystemMessagePromptTemplate
 from htmlTemplates import css, bot_template, user_template
 from langchain.llms import HuggingFaceHub
+import openai
+openai.api_key = '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'
 
 from utils import get_pdf_text, get_text_chunks, get_vectorstore
 
@@ -37,9 +39,18 @@ def get_conversation_chain(vectorstore):
     )
     return conversation_chain
 
+def simplify_text(text):
+    response = openai.Completion.create(
+      engine="text-davinci-002",
+      prompt='simplify this text (ELI5): '+ f" '''{text}'''",
+      max_tokens=100,
+      temperature=0.2
+    )
+    return response.choices[0].text.strip()
 
-def handle_userinput(user_question, question_augmentation):
-    response = st.session_state.conversation({'question': question_augmentation + user_question})
+def handle_userinput(user_question):
+
+    response = st.session_state.conversation({'question': user_question})
     st.session_state.chat_history = response['chat_history']
 
     for i, message in enumerate(st.session_state.chat_history):
@@ -49,6 +60,10 @@ def handle_userinput(user_question, question_augmentation):
         else:
             st.write(bot_template.replace(
                 "{{MSG}}", message.content), unsafe_allow_html=True)
+
+
+    
+
 
 
 def main():
@@ -82,26 +97,47 @@ def main():
                 st.session_state.conversation = get_conversation_chain(
                     vectorstore)
 
+
+
+    #user_question = st.text_input("Ask a question about your class:")
+    #if user_question:
+    #    handle_userinput(user_question)
+
+
+    def simplify_last_message():
+        last_message = st.session_state.chat_history[-1].content
+        simplified_text = simplify_text(last_message)        
+        st.session_state.chat_history[-1].content = simplified_text
+    st.button('Simplify', on_click=simplify_last_message)
+
+    # Initialize chat history
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # Accept user input
+    if prompt := st.chat_input("Talk to Study Buddy"):
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        # Display assistant response in chat message container
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = "loading..."
+            message_placeholder.markdown(full_response)
+
+        response = st.session_state.conversation({'question': prompt})
+        st.session_state.chat_history = response['chat_history']
     
-
-    st.header("Study Buddy")
-
-    difficulty = st.slider("Difficulty", min_value=1, max_value=5, value=5)
-    question_augmentation=''
-    if difficulty == 4:
-        question_augmentation = f'Simplify your response so a high schooler would understand it: '
-    elif difficulty == 3:
-        question_augmentation = f'Simplify your response so a middle schooler would understand it: '
-    elif difficulty == 2:
-        question_augmentation = f'Simplify your response so an elementary schooler would understand it: '
-
-    elif difficulty == 1:
-        question_augmentation = f'Simplify your response so a 5 year old would understand it: '
-
-    user_question = st.text_input("Ask a question about your class:")
-    if user_question:
-        handle_userinput(user_question, question_augmentation)
-
+        full_response = st.session_state.chat_history[-1].content
+        message_placeholder.markdown(full_response)
+        st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 
 if __name__ == '__main__':

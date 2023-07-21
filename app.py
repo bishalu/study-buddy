@@ -63,8 +63,8 @@ def main():
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = None
 
-
     with st.sidebar:
+
         st.header("Your classes:")
 
         #classes are currently determined by what is in the "vectors" folder
@@ -120,12 +120,33 @@ def main():
                 addNewClass(False)
                 st.experimental_rerun()
 
-                    
-
-    
+                  
 
     st.header("Study Buddy")
-    st.write('You selected ' + className)
+
+    st.caption("StudyBuddy transforms your existing course content into your preferred learning styles!")
+
+    # if not processed first, this will break. 
+    def change_student():
+        option = st.session_state['student']
+        choose_student_prompt = "For future chat, format responses for this college student:"
+        student_data = ''
+        if(option == 'Choose Student'):
+            return
+        elif(option == 'Billy'):
+            student_data = "My name is Billy and I'm a Biology major"
+        elif(option == 'Christina'):
+            student_data = "My name is Christina and I'm a Chemistry major"
+        handle_userinput(student_data, choose_student_prompt)
+
+    # Choose Student Profile 
+    option = st.selectbox(
+    '',
+    ('Choose Student', 'Billy', 'Christina'),
+    on_change=change_student,
+    key='student')
+    
+
     difficulty = st.slider("Difficulty", min_value=1, max_value=5, value=5)
     question_augmentation=''
     if difficulty == 4:

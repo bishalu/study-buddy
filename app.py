@@ -7,28 +7,35 @@ from langchain.prompts import   ChatPromptTemplate, HumanMessagePromptTemplate, 
 from htmlTemplates import css, bot_template, user_template
 from langchain.llms import HuggingFaceHub
 import openai
-openai.api_key = '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'
 import os
 
 from utils import get_pdf_text, get_text_chunks, get_vectorstore,load_vectorstore
 
-def get_conversation_chain(vectorstore):
-    llm = ChatOpenAI()
-    # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512})
+openai.api_key = os.getenv('OPENAI_API_KEY')
+MAX_CHATGPT35_TOKENS=4095
 
-    general_system_template = r""" 
-    Given a specific context, please guide the student through their inquiries. 
-    If the topic information is not provided in the prompt, say, 'You're off topic. FOCUS.' 
+def get_conversation_chain(vectorstore, student='the student'):
+    llm = ChatOpenAI(temperature=0, model="gpt-3.5-turbo")
+
+    general_system_template =  f""" 
+    You are speaking to {student}, and guiding them through through their inquiries. 
+    If the student's major is provided, greet them by their name and cater your responses to their major.
+    For example, provide a metaphor that relates the response to the student's major' 
     ----
-    {context}
+    {{context}}
     ----
     """
-    general_user_template = "```{question}```"
+    general_user_template = f"Hi I am {student}. Here is my inquiry: ```{{question}}```"
+
+    #print(general_system_template)
+    #print(general_user_template)
+
     messages = [
                 SystemMessagePromptTemplate.from_template(general_system_template),
                 HumanMessagePromptTemplate.from_template(general_user_template)
     ]
-    qa_prompt = ChatPromptTemplate.from_messages( messages )
+    qa_prompt = ChatPromptTemplate.from_messages(messages)
+
 
     memory = ConversationBufferMemory(
         memory_key='chat_history', return_messages=True)
@@ -36,21 +43,30 @@ def get_conversation_chain(vectorstore):
         llm=llm,
         retriever=vectorstore.as_retriever(),
         memory=memory,
-        combine_docs_chain_kwargs={'prompt': qa_prompt}
+        combine_docs_chain_kwargs={'prompt': qa_prompt},
+        max_tokens_limit=MAX_CHATGPT35_TOKENS
     )
     return conversation_chain
 
 
 def simplify_text(text):
-    response = openai.Completion.create(
-      engine="text-davinci-002",
-      prompt='simplify this text (ELI5): '+ f" '''{text}'''",
-      max_tokens=1000,
-      temperature=0.1,
-      stop='.....'
-
+    print(text)
+    response = openai.ChatCompletion.create(
+      model="gpt-3.5-turbo",
+      
+      #messages='Simplify the following text: '+ f" '''{text}'''",
+      messages=[
+        {"role": "system", "content": "You are Simplify. You rewrite complex texts with 2 rules 1) you simplify the text so that a 12 year old would understand and 2) you refrain from using complex terms."},
+        {"role": "user", "content": text},
+        ],
+      max_tokens=3000,
+      temperature=0.2,
+      
     )
-    return response.choices[0].text.strip()
+    print(response)
+    return response.choices[-1].message.content
+    
+
 
 
 def handle_userinput(prompt):
@@ -64,6 +80,7 @@ def handle_userinput(prompt):
         message_placeholder = st.empty()
         full_response = "loading..."
         message_placeholder.markdown(full_response)
+
     
     
     response = st.session_state.conversation({'question': prompt})
@@ -76,6 +93,8 @@ def handle_userinput(prompt):
 
 
 def main():
+
+
     load_dotenv()
     st.set_page_config(page_title="Study Buddy",
                        page_icon=":books:")
@@ -154,15 +173,16 @@ def main():
     # if not processed first, this will break. 
     def change_student():
         option = st.session_state['student']
-        choose_student_prompt = "For future chat, format responses for this college student:"
-        student_data = ''
+        student_data = 'the student'
         if(option == 'Choose Student'):
             return
         elif(option == 'Billy'):
-            student_data = "My name is Billy and I'm a Biology major"
+            student_data = "Billy, the Biology major. "
         elif(option == 'Christina'):
-            student_data = "My name is Christina and I'm a Chemistry major"
-        handle_userinput(student_data, choose_student_prompt)
+            student_data = "Christina, the Chemistry major. "
+
+        st.session_state.conversation = get_conversation_chain(vectorstore, student_data)
+        st.session_state.messages = []
 
     # Choose Student Profile 
     option = st.selectbox(

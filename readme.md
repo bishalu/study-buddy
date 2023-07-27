@@ -18,17 +18,17 @@ StudyBuddy is an AI study app for college students that transforms course materi
 
 ## Installation
 ------------
-# Step 1: Create the virtual environment
+### Step 1: Create the virtual environment
 python -m venv ~/venv/studyenv
 
-# Step 2: Create an alias for activating the virtual environment
+### Step 2: Create an alias for activating the virtual environment
 alias pyld='source ~/venv/studyenv/bin/activate'
 
-# Step 3: Activate the virtual environment
+### Step 3: Activate the virtual environment
 pyld
 
-# Step 4: Install necessary packages
+### Step 4: Install necessary packages
 pip install -r requirements.txt
 
-# Step 5: Run the application
+### Step 5: Run the application
 streamlit run app.py

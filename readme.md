@@ -32,3 +32,8 @@ pip install -r requirements.txt
 
 ### Step 5: Run the application
 streamlit run app.py
+
+
+## Demo
+------------
+HuggingFace: https://huggingface.co/spaces/zachh/study-buddy

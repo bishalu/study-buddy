@@ -11,11 +11,12 @@ license: apache-2.0
 ---
 # Study Buddy
 
+------------
 ## Introduction
 ------------
 StudyBuddy is an AI study app for college students that transforms course material into customized content, designed to match students' learning styles, existing knowledge, and goals, promoting deeper understanding and comprehension.
 
-
+------------
 ## Installation
 ------------
 ### Step 1: Create the virtual environment
@@ -33,7 +34,7 @@ pip install -r requirements.txt
 ### Step 5: Run the application
 streamlit run app.py
 
-
+------------
 ## Demo
 ------------
 HuggingFace: https://huggingface.co/spaces/zachh/study-buddy
